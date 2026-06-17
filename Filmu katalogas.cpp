@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <algorithm> // Reikalinga ctolower funkcijai
 
 using namespace std;
 
@@ -17,6 +18,9 @@ struct Filmas {
     int trukme;
 };
 
+// Pagalbinė funkcija raidžių dydžio ignoravimui
+string paverstiMazosiomis(string tekstas);
+
 // Funkcijų prototipai – BE VOID
 bool nuskaitytiIsFailo(vector<Filmas>& filmuSarasas, const string& failoVardas);
 bool issaugotiIFaila(const vector<Filmas>& filmuSarasas, const string& failoVardas);
@@ -25,15 +29,14 @@ int pridetiNauja(vector<Filmas>& filmuSarasas);
 bool redaguotiIrasa(vector<Filmas>& filmuSarasas);
 bool istrintiIrasa(vector<Filmas>& filmuSarasas);
 
-// Papildomos funkcijos (taip pat be void)
-int filtruotiPagalZanra(const vector<Filmas>& filmuSarasas);
+// Papildomos funkcijos 
+int filtruotiIrIeskoti(const vector<Filmas>& filmuSarasas); // Atnaujinta paieška
 double skaiciuotiStatistika(const vector<Filmas>& filmuSarasas);
 
 int main() {
     vector<Filmas> filmuSarasas;
     string failoVardas = "filmai.txt";
 
-    // Nuskaitymas grąžina true/false
     if (!nuskaitytiIsFailo(filmuSarasas, failoVardas)) {
         cout << "Nepavyko uzkrauti pradiniu duomenu!\n";
     }
@@ -45,7 +48,7 @@ int main() {
         cout << "[2] Prideti nauja filma (Create)\n";
         cout << "[3] Redaguoti filmo duomenis (Update)\n";
         cout << "[4] Istrinti filma is katalogo (Delete)\n";
-        cout << "[5] Filtruoti filmus pagal zanra (Papildoma 1)\n";
+        cout << "[5] Paieska pagal pavadinima arba zanra (Papildoma 1)\n";
         cout << "[6] Rodyti katalogo statistika (Papildoma 2)\n";
         cout << "[0] Iseiti ir issaugoti pakeitimus\n";
         cout << "Pasirinkite veiksma: ";
@@ -86,8 +89,8 @@ int main() {
             }
             break;
         case 5: {
-            int rastaZanre = filtruotiPagalZanra(filmuSarasas);
-            cout << "Rasta sio zanro filmu: " << rastaZanre << "\n";
+            int rastaKiekis = filtruotiIrIeskoti(filmuSarasas);
+            cout << "Is viso rasta atitikmenu: " << rastaKiekis << "\n";
             break;
         }
         case 6: {
@@ -113,7 +116,15 @@ int main() {
     return 0;
 }
 
-// 1. DUOMENŲ NUSKAITYMAS (Grąžina true, jei failas sėkmingai atidarytas)
+// PAGALBINĖ FUNKCIJA: Paverčia bet kokį tekstą mažosiomis raidėmis
+string paverstiMazosiomis(string tekstas) {
+    for (size_t i = 0; i < tekstas.length(); i++) {
+        tekstas[i] = tolower(tekstas[i]);
+    }
+    return tekstas;
+}
+
+// 1. DUOMENŲ NUSKAITYMAS
 bool nuskaitytiIsFailo(vector<Filmas>& filmuSarasas, const string& failoVardas) {
     ifstream failas(failoVardas);
     if (!failas.is_open()) {
@@ -151,7 +162,7 @@ bool nuskaitytiIsFailo(vector<Filmas>& filmuSarasas, const string& failoVardas) 
     return true;
 }
 
-// 2. DUOMENŲ ĮRAŠYMAS (Grąžina true, jei sėkmingai įrašyta)
+// 2. DUOMENŲ ĮRAŠYMAS
 bool issaugotiIFaila(const vector<Filmas>& filmuSarasas, const string& failoVardas) {
     ofstream failas(failoVardas);
     if (!failas.is_open()) {
@@ -166,7 +177,7 @@ bool issaugotiIFaila(const vector<Filmas>& filmuSarasas, const string& failoVard
     return true;
 }
 
-// 3. READ (Grąžina išspausdintų filmų skaičių) - SUTAISYTAS LYGIAVIMAS
+// 3. READ 
 int rodytiVisus(const vector<Filmas>& filmuSarasas) {
     if (filmuSarasas.empty()) {
         cout << "Katalogas yra tuscias.\n";
@@ -185,7 +196,7 @@ int rodytiVisus(const vector<Filmas>& filmuSarasas) {
     return filmuSarasas.size();
 }
 
-// 4. CREATE (Grąžina naujai sugeneruotą ID)
+// 4. CREATE
 int pridetiNauja(vector<Filmas>& filmuSarasas) {
     Filmas naujas;
 
@@ -216,7 +227,7 @@ int pridetiNauja(vector<Filmas>& filmuSarasas) {
     return naujas.id;
 }
 
-// 5. UPDATE (Grąžina true, jei filmas buvo rastas ir paredaguotas)
+// 5. UPDATE
 bool redaguotiIrasa(vector<Filmas>& filmuSarasas) {
     int ieskomasId;
     cout << "Iveskite filmo ID, kuri norite redaguoti: ";
@@ -242,7 +253,7 @@ bool redaguotiIrasa(vector<Filmas>& filmuSarasas) {
     return false;
 }
 
-// 6. DELETE (Grąžina true, jei filmas sėkmingai ištrintas)
+// 6. DELETE
 bool istrintiIrasa(vector<Filmas>& filmuSarasas) {
     int ieskomasId;
     cout << "Iveskite filmo ID, kuri norite istrinti: ";
@@ -258,33 +269,46 @@ bool istrintiIrasa(vector<Filmas>& filmuSarasas) {
     return false;
 }
 
-// 7. PAPILDOMA 1: FILTRAVIMAS (Grąžina surastų filmų skaičių) - SUTAISYTAS LYGIAVIMAS
-int filtruotiPagalZanra(const vector<Filmas>& filmuSarasas) {
-    string ieskomasZanras;
-    cout << "Iveskite zanra filtravimui (pvz., Sci-Fi, Drama): ";
-    cin >> ieskomasZanras;
+// 7. PAPILDOMA 1: SVEIKINGA PAIEŠKA (Ignoruoja didžiąsias/mažąsias raides ir ieško pagal abu kriterijus!)
+int filtruotiIrIeskoti(const vector<Filmas>& filmuSarasas) {
+    string uzklausa;
+    cout << "Iveskite filmo pavadinimo arba zanro dali: ";
+    cin.ignore();
+    getline(cin, uzklausa);
+
+    // Paverčiame vartotojo įvestį mažosiomis raidėmis
+    string uzklausaMazosiomis = paverstiMazosiomis(uzklausa);
 
     int rastaKiekis = 0;
-    cout << "\nFilmai, kuriu zanras yra '" << ieskomasZanras << "':\n";
+    cout << "\nPaieskos rezultatai pagal uzklausa '" << uzklausa << "':\n";
     cout << "---------------------------------------------------------------------------------------------------------\n";
     cout << "ID   | Pavadinimas                      | Rezisierius                  | Zanras      | Metai | Trukme\n";
     cout << "---------------------------------------------------------------------------------------------------------\n";
+
     for (const auto& f : filmuSarasas) {
-        if (f.zanras == ieskomasZanras) {
+        // Paverčiame esamo filmo pavadinimą ir žanrą mažosiomis raidėmis tik palyginimui
+        string pavadinimasMazosiomis = paverstiMazosiomis(f.pavadinimas);
+        string zanrasMazosiomis = paverstiMazosiomis(f.zanras);
+
+        // npos reiškia, kad tekstas buvo surastas (nebūtinai identiškas, gali būti ir žodžio dalis!)
+        if (pavadinimasMazosiomis.find(uzklausaMazosiomis) != string::npos ||
+            zanrasMazosiomis.find(uzklausaMazosiomis) != string::npos) {
+
             printf("%-4d | %-32s | %-28s | %-11s | %-5d | %d min.\n",
                 f.id, f.pavadinimas.c_str(), f.rezisierius.c_str(), f.zanras.c_str(), f.metai, f.trukme);
             rastaKiekis++;
         }
     }
+
     if (rastaKiekis == 0) {
-        cout << "Sio zanro filmu kataloge nera.\n";
+        cout << "Atitikmenu kataloge nerasta.\n";
     }
     cout << "---------------------------------------------------------------------------------------------------------\n";
 
     return rastaKiekis;
 }
 
-// 8. PAPILDOMA 2: STATISTIKA (Grąžina apskaičiuotą trukmės vidurkį)
+// 8. PAPILDOMA 2: STATISTIKA
 double skaiciuotiStatistika(const vector<Filmas>& filmuSarasas) {
     if (filmuSarasas.empty()) {
         cout << "Katalogas tuscias, statistika negalima.\n";
