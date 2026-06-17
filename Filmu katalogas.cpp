@@ -3,338 +3,271 @@
 #include <vector>
 #include <string>
 #include <sstream>
-#include <iomanip>
-#include <algorithm> // Reikalinga ctolower funkcijai
+#include <algorithm>
+#include <cctype>
 
 using namespace std;
 
-// Vartotojo sukurta struktūra (struct)
+// Filmo duomenų struktūra
 struct Filmas {
     int id;
     string pavadinimas;
     string rezisierius;
     string zanras;
     int metai;
-    int trukme;
+    int trukme; // minutėmis
 };
 
-// Pagalbinė funkcija raidžių dydžio ignoravimui
-string paverstiMazosiomis(string tekstas);
-
-// Funkcijų prototipai – BE VOID
-bool nuskaitytiIsFailo(vector<Filmas>& filmuSarasas, const string& failoVardas);
-bool issaugotiIFaila(const vector<Filmas>& filmuSarasas, const string& failoVardas);
-int rodytiVisus(const vector<Filmas>& filmuSarasas);
-int pridetiNauja(vector<Filmas>& filmuSarasas);
-bool redaguotiIrasa(vector<Filmas>& filmuSarasas);
-bool istrintiIrasa(vector<Filmas>& filmuSarasas);
-
-// Papildomos funkcijos 
-int filtruotiIrIeskoti(const vector<Filmas>& filmuSarasas); // Atnaujinta paieška
-double skaiciuotiStatistika(const vector<Filmas>& filmuSarasas);
-
-int main() {
-    vector<Filmas> filmuSarasas;
-    string failoVardas = "filmai.txt";
-
-    if (!nuskaitytiIsFailo(filmuSarasas, failoVardas)) {
-        cout << "Nepavyko uzkrauti pradiniu duomenu!\n";
-    }
-
-    int pasirinkimas;
-    do {
-        cout << "\n=== FILMU KATALOGO SISTEMA ===\n";
-        cout << "[1] Perziureti visus filmus (Read)\n";
-        cout << "[2] Prideti nauja filma (Create)\n";
-        cout << "[3] Redaguoti filmo duomenis (Update)\n";
-        cout << "[4] Istrinti filma is katalogo (Delete)\n";
-        cout << "[5] Paieska pagal pavadinima arba zanra (Papildoma 1)\n";
-        cout << "[6] Rodyti katalogo statistika (Papildoma 2)\n";
-        cout << "[0] Iseiti ir issaugoti pakeitimus\n";
-        cout << "Pasirinkite veiksma: ";
-        cin >> pasirinkimas;
-
-        if (cin.fail()) {
-            cin.clear();
-            cin.ignore(10000, '\n');
-            cout << "Klaida! Iveskite skaiciu nuo 0 iki 6.\n";
-            continue;
-        }
-
-        switch (pasirinkimas) {
-        case 1: {
-            int atspausdinta = rodytiVisus(filmuSarasas);
-            cout << "Is viso parodyta filmu: " << atspausdinta << "\n";
-            break;
-        }
-        case 2: {
-            int naujasId = pridetiNauja(filmuSarasas);
-            cout << "Filmas sekmingai pridetas! Priskirtas ID: " << naujasId << "\n";
-            break;
-        }
-        case 3:
-            if (redaguotiIrasa(filmuSarasas)) {
-                cout << "Filmo duomenys sekmingai atnaujinti!\n";
-            }
-            else {
-                cout << "Klaida: Filmas nerastas arba neatnaujintas.\n";
-            }
-            break;
-        case 4:
-            if (istrintiIrasa(filmuSarasas)) {
-                cout << "Filmas sekmingai pasalintas.\n";
-            }
-            else {
-                cout << "Klaida: Nepavyko rasti filmo su tokiu ID.\n";
-            }
-            break;
-        case 5: {
-            int rastaKiekis = filtruotiIrIeskoti(filmuSarasas);
-            cout << "Is viso rasta atitikmenu: " << rastaKiekis << "\n";
-            break;
-        }
-        case 6: {
-            double vidurkis = skaiciuotiStatistika(filmuSarasas);
-            if (vidurkis > 0) {
-                cout << "Statistika sekmingai apskaiciuota.\n";
-            }
-            break;
-        }
-        case 0:
-            if (issaugotiIFaila(filmuSarasas, failoVardas)) {
-                cout << "Pakeitimai issaugoti faile. Viso gero!\n";
-            }
-            else {
-                cout << "Klaida: Nepavyko issaugoti duomenu!\n";
-            }
-            break;
-        default:
-            cout << "Tokio pasirinkimo nera. Bandykite dar karta.\n";
-        }
-    } while (pasirinkimas != 0);
-
-    return 0;
-}
-
-// PAGALBINĖ FUNKCIJA: Paverčia bet kokį tekstą mažosiomis raidėmis
+// Funkcija, skirta paversti tekstą mažosiomis raidėmis (paieškai)
 string paverstiMazosiomis(string tekstas) {
-    for (size_t i = 0; i < tekstas.length(); i++) {
-        tekstas[i] = tolower(tekstas[i]);
-    }
+    transform(tekstas.begin(), tekstas.end(), tekstas.begin(), [](unsigned char c) {
+        return tolower(c);
+        });
     return tekstas;
 }
 
-// 1. DUOMENŲ NUSKAITYMAS
-bool nuskaitytiIsFailo(vector<Filmas>& filmuSarasas, const string& failoVardas) {
+// Duomenų nuskaitymas iš failo
+vector<Filmas> nuskaitytiIsFailo(const string& failoVardas) {
+    vector<Filmas> filmai;
     ifstream failas(failoVardas);
-    if (!failas.is_open()) {
-        return false;
-    }
+    if (!failas.is_open()) return filmai;
 
-    filmuSarasas.clear();
     string eilute;
-
     while (getline(failas, eilute)) {
         if (eilute.empty()) continue;
-
         stringstream ss(eilute);
-        string idStr, pavadinimas, rezisierius, zanras, metaiStr, trukmeStr;
+        string idStr, pav, rez, zan, metaiStr, trukmeStr;
 
-        if (getline(ss, idStr, ';') &&
-            getline(ss, pavadinimas, ';') &&
-            getline(ss, rezisierius, ';') &&
-            getline(ss, zanras, ';') &&
-            getline(ss, metaiStr, ';') &&
-            getline(ss, trukmeStr, ';')) {
+        getline(ss, idStr, ';');
+        getline(ss, pav, ';');
+        getline(ss, rez, ';');
+        getline(ss, zan, ';');
+        getline(ss, metaiStr, ';');
+        getline(ss, trukmeStr, ';');
 
-            Filmas f;
-            f.id = stoi(idStr);
-            f.pavadinimas = pavadinimas;
-            f.rezisierius = rezisierius;
-            f.zanras = zanras;
-            f.metai = stoi(metaiStr);
-            f.trukme = stoi(trukmeStr);
-
-            filmuSarasas.push_back(f);
-        }
+        Filmas f;
+        f.id = stoi(idStr);
+        f.pavadinimas = pav;
+        f.rezisierius = rez;
+        f.zanras = zan;
+        f.metai = stoi(metaiStr);
+        f.trukme = stoi(trukmeStr);
+        filmai.push_back(f);
     }
     failas.close();
-    return true;
+    return filmai;
 }
 
-// 2. DUOMENŲ ĮRAŠYMAS
-bool issaugotiIFaila(const vector<Filmas>& filmuSarasas, const string& failoVardas) {
+// Duomenų įrašymas į failą
+void irasytiIFaila(const string& failoVardas, const vector<Filmas>& filmai) {
     ofstream failas(failoVardas);
-    if (!failas.is_open()) {
-        return false;
-    }
-
-    for (const auto& f : filmuSarasas) {
+    for (const auto& f : filmai) {
         failas << f.id << ";" << f.pavadinimas << ";" << f.rezisierius << ";"
             << f.zanras << ";" << f.metai << ";" << f.trukme << "\n";
     }
     failas.close();
-    return true;
 }
 
-// 3. READ 
-int rodytiVisus(const vector<Filmas>& filmuSarasas) {
-    if (filmuSarasas.empty()) {
-        cout << "Katalogas yra tuscias.\n";
-        return 0;
+// READ: Viso katalogo rodymas lentelėje
+void rodytiVisus(const vector<Filmas>& filmai) {
+    if (filmai.empty()) {
+        cout << "\nKatalogas yra tuscias.\n";
+        return;
     }
+    cout << "\n============================================================================================================================\n";
+    printf("%-4s | %-32s | %-28s | %-11s | %-5s | %s\n", "ID", "Pavadinimas", "Rezisierius", "Zanras", "Metai", "Trukme (min / val)");
+    cout << "----------------------------------------------------------------------------------------------------------------------------\n";
 
-    cout << "\n---------------------------------------------------------------------------------------------------------\n";
-    cout << "ID   | Pavadinimas                      | Rezisierius                  | Zanras      | Metai | Trukme\n";
-    cout << "---------------------------------------------------------------------------------------------------------\n";
-    for (const auto& f : filmuSarasas) {
-        printf("%-4d | %-32s | %-28s | %-11s | %-5d | %d min.\n",
-            f.id, f.pavadinimas.c_str(), f.rezisierius.c_str(), f.zanras.c_str(), f.metai, f.trukme);
+    for (const auto& f : filmai) {
+        int valandos = f.trukme / 60;
+        int minutes = f.trukme % 60;
+
+        printf("%-4d | %-32s | %-28s | %-11s | %-5d | %d min / %dh %02dmin\n",
+            f.id, f.pavadinimas.c_str(), f.rezisierius.c_str(), f.zanras.c_str(), f.metai, f.trukme, valandos, minutes);
     }
-    cout << "---------------------------------------------------------------------------------------------------------\n";
-
-    return filmuSarasas.size();
+    cout << "============================================================================================================================\n";
 }
 
-// 4. CREATE
-int pridetiNauja(vector<Filmas>& filmuSarasas) {
-    Filmas naujas;
+// CREATE: Naujo filmo pridėjimas
+void pridetiFilma(vector<Filmas>& filmai, const string& failoVardas) {
+    Filmas f;
+    f.id = filmai.empty() ? 1 : filmai.back().id + 1;
 
-    if (filmuSarasas.empty()) {
-        naujas.id = 1;
-    }
-    else {
-        int maxId = filmuSarasas[0].id;
-        for (const auto& f : filmuSarasas) {
-            if (f.id > maxId) maxId = f.id;
-        }
-        naujas.id = maxId + 1;
-    }
-
-    cout << "Iveskite filmo pavadinima: ";
+    cout << "\n--- Naujo filmo pridejimas ---\n";
+    cout << "Iveskite pavadinima: ";
     cin.ignore();
-    getline(cin, naujas.pavadinimas);
+    getline(cin, f.pavadinimas);
     cout << "Iveskite rezisieriu: ";
-    getline(cin, naujas.rezisierius);
+    getline(cin, f.rezisierius);
     cout << "Iveskite zanra: ";
-    cin >> naujas.zanras;
+    getline(cin, f.zanras);
     cout << "Iveskite isleidimo metus: ";
-    cin >> naujas.metai;
+    cin >> f.metai;
     cout << "Iveskite trukme (minutemis): ";
-    cin >> naujas.trukme;
+    cin >> f.trukme;
 
-    filmuSarasas.push_back(naujas);
-    return naujas.id;
+    filmai.push_back(f);
+    irasytiIFaila(failoVardas, filmai);
+    cout << "\nFilmas sekmingai pridetas!\n";
 }
 
-// 5. UPDATE
-bool redaguotiIrasa(vector<Filmas>& filmuSarasas) {
-    int ieskomasId;
-    cout << "Iveskite filmo ID, kuri norite redaguoti: ";
-    cin >> ieskomasId;
+// UPDATE: Filmo redagavimas pagal ID
+void redaguotiFilma(vector<Filmas>& filmai, const string& failoVardas) {
+    int id;
+    cout << "\nIveskite filmo ID, kuri norite redaguoti: ";
+    cin >> id;
 
-    for (auto& f : filmuSarasas) {
-        if (f.id == ieskomasId) {
-            cout << "Rastas filmas: " << f.pavadinimas << "\n";
-            cout << "Iveskite nauja pavadinima: ";
+    for (auto& f : filmai) {
+        if (f.id == id) {
+            cout << "\nRastas filmas: " << f.pavadinimas << "\n";
+            cout << "Iveskite nauja pavadinima (arba palikite senaji): ";
             cin.ignore();
-            getline(cin, f.pavadinimas);
+            string naujasPav;
+            getline(cin, naujasPav);
+            if (!naujasPav.empty()) f.pavadinimas = naujasPav;
+
             cout << "Iveskite nauja rezisieriu: ";
-            getline(cin, f.rezisierius);
+            string naujasRez;
+            getline(cin, naujasRez);
+            if (!naujasRez.empty()) f.rezisierius = naujasRez;
+
             cout << "Iveskite nauja zanra: ";
-            cin >> f.zanras;
-            cout << "Iveskite naujus metus: ";
-            cin >> f.metai;
-            cout << "Iveskite nauja trukme (min.): ";
-            cin >> f.trukme;
-            return true;
+            string naujasZan;
+            getline(cin, naujasZan);
+            if (!naujasZan.empty()) f.zanras = naujasZan;
+
+            cout << "Iveskite naujus metus (0 - nekeisti): ";
+            int naujiMetai;
+            cin >> naujiMetai;
+            if (naujiMetai != 0) f.metai = naujiMetai;
+
+            cout << "Iveskite nauja trukme minutemis (0 - nekeisti): ";
+            int naujaTrukme;
+            cin >> naujaTrukme;
+            if (naujaTrukme != 0) f.trukme = naujaTrukme;
+
+            irasytiIFaila(failoVardas, filmai);
+            cout << "\nFilmo duomenys atnaujinti!\n";
+            return;
         }
     }
-    return false;
+    cout << "\nFilmas su ID " << id << " nerastas.\n";
 }
 
-// 6. DELETE
-bool istrintiIrasa(vector<Filmas>& filmuSarasas) {
-    int ieskomasId;
-    cout << "Iveskite filmo ID, kuri norite istrinti: ";
-    cin >> ieskomasId;
+// DELETE: Filmo trynimas pagal ID
+void istrintiFilma(vector<Filmas>& filmai, const string& failoVardas) {
+    int id;
+    cout << "\nIveskite filmo ID, kuri norite istrinti: ";
+    cin >> id;
 
-    for (auto it = filmuSarasas.begin(); it != filmuSarasas.end(); ++it) {
-        if (it->id == ieskomasId) {
-            cout << "Filmas \"" << it->pavadinimas << "\" pasalinamas...\n";
-            filmuSarasas.erase(it);
-            return true;
+    for (auto it = filmai.begin(); it != filmai.end(); ++it) {
+        if (it->id == id) {
+            cout << "\nFilmas \"" << it->pavadinimas << "\" pasalinamas.\n";
+            filmai.erase(it);
+            irasytiIFaila(failoVardas, filmai);
+            cout << "Filmas sekmingai istrintas!\n";
+            return;
         }
     }
-    return false;
+    cout << "\nFilmas su ID " << id << " nerastas.\n";
 }
 
-// 7. PAPILDOMA 1: SVEIKINGA PAIEŠKA (Ignoruoja didžiąsias/mažąsias raides ir ieško pagal abu kriterijus!)
-int filtruotiIrIeskoti(const vector<Filmas>& filmuSarasas) {
-    string uzklausa;
-    cout << "Iveskite filmo pavadinimo arba zanro dali: ";
+// Išmani paieška (neveikia didžiosios/mažosios raidės)
+void filtruotiIrIeskoti(const vector<Filmas>& filmai) {
+    if (filmai.empty()) {
+        cout << "\nKatalogas tuscias, nera ko ieskoti.\n";
+        return;
+    }
+
+    cout << "\nIveskite filmo pavadinimo arba zanro dali paieskai: ";
     cin.ignore();
-    getline(cin, uzklausa);
+    string fraze;
+    getline(cin, fraze);
+    string ieskomaFraze = paverstiMazosiomis(fraze);
 
-    // Paverčiame vartotojo įvestį mažosiomis raidėmis
-    string uzklausaMazosiomis = paverstiMazosiomis(uzklausa);
+    bool rasta = false;
 
-    int rastaKiekis = 0;
-    cout << "\nPaieskos rezultatai pagal uzklausa '" << uzklausa << "':\n";
-    cout << "---------------------------------------------------------------------------------------------------------\n";
-    cout << "ID   | Pavadinimas                      | Rezisierius                  | Zanras      | Metai | Trukme\n";
-    cout << "---------------------------------------------------------------------------------------------------------\n";
+    cout << "\n============================================================================================================================\n";
+    printf("%-4s | %-32s | %-28s | %-11s | %-5s | %s\n", "ID", "Pavadinimas", "Rezisierius", "Zanras", "Metai", "Trukme (min / val)");
+    cout << "----------------------------------------------------------------------------------------------------------------------------\n";
 
-    for (const auto& f : filmuSarasas) {
-        // Paverčiame esamo filmo pavadinimą ir žanrą mažosiomis raidėmis tik palyginimui
-        string pavadinimasMazosiomis = paverstiMazosiomis(f.pavadinimas);
-        string zanrasMazosiomis = paverstiMazosiomis(f.zanras);
+    for (const auto& f : filmai) {
+        string pavMazosiomis = paverstiMazosiomis(f.pavadinimas);
+        string zanMazosiomis = paverstiMazosiomis(f.zanras);
 
-        // npos reiškia, kad tekstas buvo surastas (nebūtinai identiškas, gali būti ir žodžio dalis!)
-        if (pavadinimasMazosiomis.find(uzklausaMazosiomis) != string::npos ||
-            zanrasMazosiomis.find(uzklausaMazosiomis) != string::npos) {
+        // Tikriname, ar pavadinime arba žanre yra ieškoma frazė
+        if (pavMazosiomis.find(ieskomaFraze) != string::npos || zanMazosiomis.find(ieskomaFraze) != string::npos) {
+            int valandos = f.trukme / 60;
+            int minutes = f.trukme % 60;
 
-            printf("%-4d | %-32s | %-28s | %-11s | %-5d | %d min.\n",
-                f.id, f.pavadinimas.c_str(), f.rezisierius.c_str(), f.zanras.c_str(), f.metai, f.trukme);
-            rastaKiekis++;
+            printf("%-4d | %-32s | %-28s | %-11s | %-5d | %d min / %dh %02dmin\n",
+                f.id, f.pavadinimas.c_str(), f.rezisierius.c_str(), f.zanras.c_str(), f.metai, f.trukme, valandos, minutes);
+            rasta = true;
         }
     }
+    cout << "============================================================================================================================\n";
 
-    if (rastaKiekis == 0) {
-        cout << "Atitikmenu kataloge nerasta.\n";
+    if (!rasta) {
+        cout << "Pagal jusu uzklausa \"" << fraze << "\" nieko nerasta.\n";
     }
-    cout << "---------------------------------------------------------------------------------------------------------\n";
-
-    return rastaKiekis;
 }
 
-// 8. PAPILDOMA 2: STATISTIKA
-double skaiciuotiStatistika(const vector<Filmas>& filmuSarasas) {
-    if (filmuSarasas.empty()) {
-        cout << "Katalogas tuscias, statistika negalima.\n";
-        return 0.0;
+// Statistikos skaičiavimas
+void rodytiStatistika(const vector<Filmas>& filmai) {
+    if (filmai.empty()) {
+        cout << "\nKatalogas tuscias, statistika negalima.\n";
+        return;
     }
 
-    int kiekis = filmuSarasas.size();
     int bendraTrukme = 0;
-    int seniausiMetai = filmuSarasas[0].metai;
-    int naujausiMetai = filmuSarasas[0].metai;
+    const Filmas* seniausias = &filmai[0];
+    const Filmas* naujausias = &filmai[0];
 
-    for (const auto& f : filmuSarasas) {
+    for (const auto& f : filmai) {
         bendraTrukme += f.trukme;
-        if (f.metai < seniausiMetai) seniausiMetai = f.metai;
-        if (f.metai > naujausiMetai) naujausiMetai = f.metai;
+        if (f.metai < seniausias->metai) seniausias = &f;
+        if (f.metai > naujausias->metai) naujausias = &f;
     }
 
-    double vidurkis = (double)bendraTrukme / kiekis;
+    double vidurkis = (double)bendraTrukme / filmai.size();
 
-    cout << "\n====== KATALOGO STATISTIKA ======\n";
-    cout << "Is viso filmu kataloge: " << kiekis << " vnt.\n";
+    cout << "\n======= KATALOGO STATISTIKA =======\n";
+    cout << "Is viso filmu kataloge: " << filmai.size() << " vnt.\n";
     cout << "Bendra visu filmu trukme: " << bendraTrukme << " min.\n";
-    cout << "Vidutine filmo trukme: " << fixed << setprecision(1) << vidurkis << " min.\n";
-    cout << "Seniausias filmas isleistas: " << seniausiMetai << " m.\n";
-    cout << "Naujausias filmas isleistas: " << naujausiMetai << " m.\n";
-    cout << "=================================\n";
+    printf("Vidutine filmo trukme: %.1f min.\n", vidurkis);
+    cout << "Seniausias filmas: " << seniausias->pavadinimas << " (" << seniausias->metai << " m.)\n";
+    cout << "Naujausias filmas: " << naujausias->pavadinimas << " (" << naujausias->metai << " m.)\n";
+    cout << "===================================\n";
+}
 
-    return vidurkis;
+int main() {
+    const string failoVardas = "filmai.txt";
+    vector<Filmas> filmai = nuskaitytiIsFailo(failoVardas);
+
+    int pasirinkimas = 0;
+    do {
+        cout << "\n--- FILMU KATALOGO VALDYMAS ---\n";
+        cout << "1. Rodyti visus filmus\n";
+        cout << "2. Prideti nauja filma\n";
+        cout << "3. Redaguoti filma pagal ID\n";
+        cout << "4. Istrinti filma pagal ID\n";
+        cout << "5. Paieska pagal pavadinima/zanra\n";
+        cout << "6. Ziureti katalogo statistika\n";
+        cout << "7. Iseeiti is programos\n";
+        cout << "Pasirinkite veiksma (1-7): ";
+        cin >> pasirinkimas;
+
+        switch (pasirinkimas) {
+        case 1: rodytiVisus(filmai); break;
+        case 2: pridetiFilma(filmai, failoVardas); break;
+        case 3: redaguotiFilma(filmai, failoVardas); break;
+        case 4: istrintiFilma(filmai, failoVardas); break;
+        case 5: filtruotiIrIeskoti(filmai); break;
+        case 6: rodytiStatistika(filmai); break;
+        case 7: cout << "\nDarbas baigtas. Geros dienos!\n"; break;
+        default: cout << "\nNeteisingas pasirinkimas. Bandykite dar karta.\n";
+        }
+    } while (pasirinkimas != 7);
+
+    return 0;
 }
