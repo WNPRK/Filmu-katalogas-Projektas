@@ -17,7 +17,7 @@ struct Filmas {
     int trukme;
 };
 
-// Funkcijų prototipai – dabar BE VOID
+// Funkcijų prototipai – BE VOID
 bool nuskaitytiIsFailo(vector<Filmas>& filmuSarasas, const string& failoVardas);
 bool issaugotiIFaila(const vector<Filmas>& filmuSarasas, const string& failoVardas);
 int rodytiVisus(const vector<Filmas>& filmuSarasas);
@@ -87,7 +87,7 @@ int main() {
             break;
         case 5: {
             int rastaZanre = filtruotiPagalZanra(filmuSarasas);
-            cout << "Rasta siuo zanro filmu: " << rastaZanre << "\n";
+            cout << "Rasta sio zanro filmu: " << rastaZanre << "\n";
             break;
         }
         case 6: {
@@ -166,21 +166,21 @@ bool issaugotiIFaila(const vector<Filmas>& filmuSarasas, const string& failoVard
     return true;
 }
 
-// 3. READ (Grąžina išspausdintų filmų skaičių)
+// 3. READ (Grąžina išspausdintų filmų skaičių) - SUTAISYTAS LYGIAVIMAS
 int rodytiVisus(const vector<Filmas>& filmuSarasas) {
     if (filmuSarasas.empty()) {
         cout << "Katalogas yra tuscias.\n";
         return 0;
     }
 
-    cout << "\n---------------------------------------------------------------------------------------\n";
-    cout << "ID   | Pavadinimas             | Rezisierius             | Zanras      | Metai | Trukme\n";
-    cout << "---------------------------------------------------------------------------------------\n";
+    cout << "\n---------------------------------------------------------------------------------------------------------\n";
+    cout << "ID   | Pavadinimas                      | Rezisierius                  | Zanras      | Metai | Trukme\n";
+    cout << "---------------------------------------------------------------------------------------------------------\n";
     for (const auto& f : filmuSarasas) {
-        printf("%-4d | %-23s | %-23s | %-11s | %-5d | %d min.\n",
+        printf("%-4d | %-32s | %-28s | %-11s | %-5d | %d min.\n",
             f.id, f.pavadinimas.c_str(), f.rezisierius.c_str(), f.zanras.c_str(), f.metai, f.trukme);
     }
-    cout << "---------------------------------------------------------------------------------------\n";
+    cout << "---------------------------------------------------------------------------------------------------------\n";
 
     return filmuSarasas.size();
 }
@@ -258,7 +258,7 @@ bool istrintiIrasa(vector<Filmas>& filmuSarasas) {
     return false;
 }
 
-// 7. PAPILDOMA 1: FILTRAVIMAS (Grąžina surastų filmų skaičių)
+// 7. PAPILDOMA 1: FILTRAVIMAS (Grąžina surastų filmų skaičių) - SUTAISYTAS LYGIAVIMAS
 int filtruotiPagalZanra(const vector<Filmas>& filmuSarasas) {
     string ieskomasZanras;
     cout << "Iveskite zanra filtravimui (pvz., Sci-Fi, Drama): ";
@@ -266,10 +266,12 @@ int filtruotiPagalZanra(const vector<Filmas>& filmuSarasas) {
 
     int rastaKiekis = 0;
     cout << "\nFilmai, kuriu zanras yra '" << ieskomasZanras << "':\n";
-    cout << "---------------------------------------------------------------------------------------\n";
+    cout << "---------------------------------------------------------------------------------------------------------\n";
+    cout << "ID   | Pavadinimas                      | Rezisierius                  | Zanras      | Metai | Trukme\n";
+    cout << "---------------------------------------------------------------------------------------------------------\n";
     for (const auto& f : filmuSarasas) {
         if (f.zanras == ieskomasZanras) {
-            printf("%-4d | %-23s | %-23s | %-11s | %-5d | %d min.\n",
+            printf("%-4d | %-32s | %-28s | %-11s | %-5d | %d min.\n",
                 f.id, f.pavadinimas.c_str(), f.rezisierius.c_str(), f.zanras.c_str(), f.metai, f.trukme);
             rastaKiekis++;
         }
@@ -277,7 +279,7 @@ int filtruotiPagalZanra(const vector<Filmas>& filmuSarasas) {
     if (rastaKiekis == 0) {
         cout << "Sio zanro filmu kataloge nera.\n";
     }
-    cout << "---------------------------------------------------------------------------------------\n";
+    cout << "---------------------------------------------------------------------------------------------------------\n";
 
     return rastaKiekis;
 }
